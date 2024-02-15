@@ -10,7 +10,7 @@ Vue.component('note-board', {
   `,
   data() {
     return {
-      newCardTitle: '', // Заголовок новой карточки
+      newCardTitle: '',
       cards: [] // Массив для хранения карточек
     };
   },
@@ -70,12 +70,12 @@ Vue.component('note-list', {
       const newItemText = this.newItem.trim();
       if (newItemText !== '') {
         const card = this.cards[cardIndex];
-        if (card.items.length < 5) { // Проверка на максимальное количество пунктов
+        if (card.items.length < 5) {
           card.items.push(newItemText);
           card.checkedItems.push(false);
           this.newItem = '';
         } else {
-          card.full = true; // Установка флага, что карточка полная
+          card.full = true;
         }
       }
     },
@@ -90,18 +90,37 @@ Vue.component('note-list', {
       this.cards[cardIndex].items.splice(this.editedIndex, 1, this.editedItem);
       this.editedIndex = -1;
       this.editedItem = '';
-    }
+    },
+    checkCardStatus(cardIndex) {
+      const card = this.cards[cardIndex]; // Получаем карточку по индексу
+      const checkedCount = card.checkedItems.filter(item => item).length; // количество отмеченных пунктов
+      const totalItems = card.items.length; // общее количество пунктов в карточке
+      const percentChecked = (checkedCount / totalItems) * 100; //процент отмеченных пунктов
+
+      // если процент отмеченных пунктов равен или больше 50% и карточка находится в 1 столбце
+      if (percentChecked >= 50 && card.column === 0) {
+        card.column = 50;
+      }
+      // если все пункты карточки отмечены и карточка находится в 1 или 2 столбце
+      else if (percentChecked === 100 && card.column <= 50) {
+        card.column = 100;
+      }
+      // условие возврата карточки в 1 столбец, если все галочки сняты
+      else if (percentChecked === 0 && card.column > 0) {
+        card.column = 0;
+      }
+    },
   },
   template: `
     <div>
-      <div v-for="(card, index) in cards" :key="index" class="card">
+      <div v-for="(card, index) in cards" :key="index" class="card" :class="{ 'column-50': card.column === 50 }">
         <h3>{{ card.title }}</h3>
-        <input type="text" v-model="newItem" @keyup.enter="addItem(index)" placeholder="Новый пункт">
+        <input type="text" v-model="newItem" @keyup.enter="addItem(index)" placeholder="название пункта">
         <button @click="addItem(index)" :disabled="card.full">Добавить</button>
         <ul>
           <li v-for="(item, itemIndex) in card.items" :key="itemIndex">
             <span v-if="editedIndex !== itemIndex">
-              <input type="checkbox" v-model="card.checkedItems[itemIndex]">
+              <input type="checkbox" v-model="card.checkedItems[itemIndex]" @change="checkCardStatus(index)">
               <span @click="editItem(itemIndex, item)">{{ item }}</span>
             </span>
             <span v-else>
