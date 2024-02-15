@@ -11,19 +11,17 @@ Vue.component('note-board', {
   data() {
     return {
       newCardTitle: '',
-      columnLimits: [3, 5, Infinity],
-      cards: [] // Массив для хранения карточек
+      cards: JSON.parse(localStorage.getItem('cards')) || []
     };
   },
   methods: {
     addCard() {
       if (this.newCardTitle.trim() !== '') {
         const columnCounts = this.cards.reduce((acc, card) => {
-          acc[card.column] = (acc[card.column] || 0) + 1; // Считаем количество карточек в каждом столбце
+          acc[card.column] = (acc[card.column] || 0) + 1;
           return acc;
         }, {});
 
-        // Проверяем, можно ли добавить карточку в соответствующий столбец
         if (this.cards.length < 3 || columnCounts[50] < 5 || columnCounts[100] < this.cards.length - 5) {
           this.cards.push({
             title: this.newCardTitle.trim(),
@@ -33,7 +31,6 @@ Vue.component('note-board', {
           });
           this.newCardTitle = '';
 
-          // Если добавленная карточка превышает лимит в первом столбце, переносим её во второй столбец
           if (this.cards.length === 4 && columnCounts[0] === 3) {
             this.cards.forEach(card => {
               if (card.column === 0) {
@@ -41,6 +38,8 @@ Vue.component('note-board', {
               }
             });
           }
+
+          localStorage.setItem('cards', JSON.stringify(this.cards));
         }
       }
     },
@@ -64,12 +63,17 @@ Vue.component('note-card', {
   template: `
     <div class="note-card">
       <h2>{{ percent }}</h2>
-      <note-list :cards="filteredCards"></note-list>
+      <note-list :cards="filteredCards" @save-items="saveItems"></note-list>
     </div>
   `,
   computed: {
     filteredCards() {
       return this.cards.filter(card => card.column === parseInt(this.percent));
+    }
+  },
+  methods: {
+    saveItems() {
+      localStorage.setItem('cards', JSON.stringify(this.cards));
     }
   }
 });
@@ -78,23 +82,24 @@ Vue.component('note-list', {
   props: ['cards'],
   data() {
     return {
-      newItem: '',
+      newItems: {},
       editedIndex: -1,
       editedItem: ''
     };
   },
   methods: {
     addItem(cardIndex) {
-      const newItemText = this.newItem.trim();
+      const newItemText = this.newItems[cardIndex] ? this.newItems[cardIndex].trim() : '';
       if (newItemText !== '') {
         const card = this.cards[cardIndex];
         if (card.items.length < 5) {
           card.items.push(newItemText);
           card.checkedItems.push(false);
-          this.newItem = '';
+          this.$set(this.newItems, cardIndex, '');
         } else {
           card.full = true;
         }
+        this.$emit('save-items');
       }
     },
     editItem(itemIndex, item) {
@@ -108,32 +113,31 @@ Vue.component('note-list', {
       this.cards[cardIndex].items.splice(this.editedIndex, 1, this.editedItem);
       this.editedIndex = -1;
       this.editedItem = '';
+
+      this.$emit('save-items');
     },
     checkCardStatus(cardIndex) {
-      const card = this.cards[cardIndex]; // Получаем карточку по индексу
-      const checkedCount = card.checkedItems.filter(item => item).length; // количество отмеченных пунктов
-      const totalItems = card.items.length; // общее количество пунктов в карточке
-      const percentChecked = (checkedCount / totalItems) * 100; //процент отмеченных пунктов
-
-      // если процент отмеченных пунктов равен или больше 50% и карточка находится в 1 столбце
+      const card = this.cards[cardIndex];
+      const checkedCount = card.checkedItems.filter(item => item).length;
+      const totalItems = card.items.length;
+      const percentChecked = (checkedCount / totalItems) * 100;
       if (percentChecked >= 50 && card.column === 0) {
         card.column = 50;
       }
-      // если все пункты карточки отмечены и карточка находится в 1 или 2 столбце
       else if (percentChecked === 100 && card.column <= 50) {
         card.column = 100;
       }
-      // условие возврата карточки в 1 столбец, если все галочки сняты
       else if (percentChecked === 0 && card.column > 0) {
         card.column = 0;
       }
+      this.$emit('save-items');
     },
   },
   template: `
     <div>
       <div v-for="(card, index) in cards" :key="index" class="card" :class="{ 'column-50': card.column === 50 }">
         <h3>{{ card.title }}</h3>
-        <input type="text" v-model="newItem" @keyup.enter="addItem(index)" placeholder="название пункта">
+        <input type="text" v-model="newItems[index]" @keyup.enter="addItem(index)" placeholder="название пункта">
         <button @click="addItem(index)" :disabled="card.full">Добавить</button>
         <ul>
           <li v-for="(item, itemIndex) in card.items" :key="itemIndex">
