@@ -11,19 +11,37 @@ Vue.component('note-board', {
   data() {
     return {
       newCardTitle: '',
+      columnLimits: [3, 5, Infinity],
       cards: [] // Массив для хранения карточек
     };
   },
   methods: {
-    addCard() { // Метод для добавления новой карточки
+    addCard() {
       if (this.newCardTitle.trim() !== '') {
-        this.cards.push({ // Добавляем карточку
-          title: this.newCardTitle.trim(),
-          items: ['Пункт 1', 'Пункт 2', 'Пункт 3'],
-          checkedItems: [false, false, false],
-          column: 0,
-        });
-        this.newCardTitle = '';
+        const columnCounts = this.cards.reduce((acc, card) => {
+          acc[card.column] = (acc[card.column] || 0) + 1; // Считаем количество карточек в каждом столбце
+          return acc;
+        }, {});
+
+        // Проверяем, можно ли добавить карточку в соответствующий столбец
+        if (this.cards.length < 3 || columnCounts[50] < 5 || columnCounts[100] < this.cards.length - 5) {
+          this.cards.push({
+            title: this.newCardTitle.trim(),
+            items: ['Пункт 1', 'Пункт 2', 'Пункт 3'],
+            checkedItems: [false, false, false],
+            column: 0,
+          });
+          this.newCardTitle = '';
+
+          // Если добавленная карточка превышает лимит в первом столбце, переносим её во второй столбец
+          if (this.cards.length === 4 && columnCounts[0] === 3) {
+            this.cards.forEach(card => {
+              if (card.column === 0) {
+                card.column = 50;
+              }
+            });
+          }
+        }
       }
     },
   },
