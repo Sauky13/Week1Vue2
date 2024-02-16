@@ -6,12 +6,19 @@
     border: 2px solid #ccc;
     width: 1055px;
 }
-
+.note-card{
+    display: flex;
+    gap: 30px;
+    flex-direction: column;
+    width: 300px;
+    align-items: center;
+}
 .card {
-    border: 1px solid #ccc;
+    border: 3px solid #95c9a1;
     border-radius: 5px;
     padding: 10px;
     margin: 5px;
+
 }
 
 .form {
@@ -25,4 +32,11 @@
     gap: 20px;
     align-items: center;
     margin-top: 20px;
+}
+#input-item{
+    width: 150px;
+    text-align: center;
+}
+#input-edit-item{
+    width: 120px;
 }

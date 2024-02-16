@@ -121,24 +121,49 @@ Vue.component('note-list', {
       const checkedCount = card.checkedItems.filter(item => item).length;
       const totalItems = card.items.length;
       const percentChecked = (checkedCount / totalItems) * 100;
-      if (percentChecked >= 50 && card.column === 0) {
-        card.column = 50;
-      }
-      else if (percentChecked === 100 && card.column <= 50) {
-        card.column = 100;
-      }
-      else if (percentChecked === 0 && card.column > 0) {
-        card.column = 0;
+
+      const updateCardPosition = (newColumn, setLastChecked) => {
+        card.column = newColumn;
+        //для формированяи даты
+        const formatter = new Intl.DateTimeFormat('ru', {
+          year: '2-digit',
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        if (setLastChecked) {
+          const now = new Date();
+          card.lastChecked = formatter.format(new Date());
+        } else {
+          card.lastChecked = null;
+        }
+      };
+      if (card.column === 0) {
+        if (percentChecked >= 50) {
+          updateCardPosition(50, percentChecked === 100);
+        }
+      } else if (card.column === 50) {
+        if (percentChecked < 50) {
+          updateCardPosition(0, false);
+        } else if (percentChecked === 100) {
+          updateCardPosition(100, true);
+        }
+      } else if (card.column === 100) {
+        if (percentChecked < 100) {
+          updateCardPosition(50, false);
+        }
       }
       this.$emit('save-items');
     },
+
   },
   template: `
     <div>
       <div v-for="(card, index) in cards" :key="index" class="card" :class="{ 'column-50': card.column === 50 }">
         <h3>{{ card.title }}</h3>
-        <input type="text" v-model="newItems[index]" @keyup.enter="addItem(index)" placeholder="название пункта">
-        <button @click="addItem(index)" :disabled="card.full">Добавить</button>
+        <input id="input-item" type="text" v-model="newItems[index]" @keyup.enter="addItem(index)" placeholder="название пункта">
+        <button @click="addItem(index)" :disabled="card.full">+</button>
         <ul>
           <li v-for="(item, itemIndex) in card.items" :key="itemIndex">
             <span v-if="editedIndex !== itemIndex">
@@ -146,11 +171,13 @@ Vue.component('note-list', {
               <span @click="editItem(itemIndex, item)">{{ item }}</span>
             </span>
             <span v-else>
-              <input type="text" v-model="editedItem" @blur="doneEdit(index)" @keyup.enter="doneEdit(index)">
+              <input id="input-edit-item" type="text" v-model="editedItem" @blur="doneEdit(index)" @keyup.enter="doneEdit(index)">
             </span>
           </li>
         </ul>
+        <div v-if="card.lastChecked"><p>Выполнено {{ card.lastChecked }}</p></div>
       </div>
+      
     </div>
   `,
 });
