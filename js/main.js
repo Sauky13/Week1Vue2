@@ -22,7 +22,12 @@ Vue.component('note-board', {
           return acc;
         }, {});
 
-        if (this.cards.length < 3 || columnCounts[50] < 5 || columnCounts[100] < this.cards.length - 5) {
+        if (
+            (this.cards.length < 3 || columnCounts[50] < 5 || columnCounts[100] < this.cards.length - 5) &&
+            (this.cards.filter(card => card.column === 0).length < 3 ||
+                (this.cards.filter(card => card.column === 100).length > 0 && columnCounts[0] < 3)) &&
+            !(this.cards.filter(card => card.column === 50).length >= 5)
+        ) {
           this.cards.push({
             title: this.newCardTitle.trim(),
             items: ['Пункт 1', 'Пункт 2', 'Пункт 3'],
@@ -38,7 +43,6 @@ Vue.component('note-board', {
               }
             });
           }
-
           localStorage.setItem('cards', JSON.stringify(this.cards));
         }
       }
@@ -83,8 +87,8 @@ Vue.component('note-list', {
   data() {
     return {
       newItems: {},
-      editedIndex: -1,
-      editedItem: ''
+      editedIndex: {},
+      editedItem: {}
     };
   },
   methods: {
@@ -102,17 +106,19 @@ Vue.component('note-list', {
         this.$emit('save-items');
       }
     },
-    editItem(itemIndex, item) {
-      this.editedIndex = itemIndex;
-      this.editedItem = item;
+    editItem(cardIndex, itemIndex, item) {
+      this.$set(this.editedIndex, cardIndex, itemIndex);
+      this.$set(this.editedItem, cardIndex, item);
     },
     doneEdit(cardIndex) {
-      if (!this.editedItem) {
+      const itemIndex = this.editedIndex[cardIndex];
+      const editedItem = this.editedItem[cardIndex];
+      if (!editedItem) {
         return;
       }
-      this.cards[cardIndex].items.splice(this.editedIndex, 1, this.editedItem);
-      this.editedIndex = -1;
-      this.editedItem = '';
+      this.cards[cardIndex].items.splice(itemIndex, 1, editedItem);
+      this.$delete(this.editedIndex, cardIndex);
+      this.$delete(this.editedItem, cardIndex);
 
       this.$emit('save-items');
     },
@@ -124,7 +130,6 @@ Vue.component('note-list', {
 
       const updateCardPosition = (newColumn, setLastChecked) => {
         card.column = newColumn;
-        //для формированяи даты
         const formatter = new Intl.DateTimeFormat('ru', {
           year: '2-digit',
           day: '2-digit',
@@ -156,28 +161,26 @@ Vue.component('note-list', {
       }
       this.$emit('save-items');
     },
-
   },
   template: `
     <div>
-      <div v-for="(card, index) in cards" :key="index" class="card" :class="{ 'column-50': card.column === 50 }">
+      <div v-for="(card, cardIndex) in cards" :key="cardIndex" class="card" :class="{ 'column-50': card.column === 50 }">
         <h3>{{ card.title }}</h3>
-        <input id="input-item" type="text" v-model="newItems[index]" @keyup.enter="addItem(index)" placeholder="название пункта">
-        <button @click="addItem(index)" :disabled="card.full">+</button>
+        <input id="input-item" type="text" v-model="newItems[cardIndex]" @keyup.enter="addItem(cardIndex)" placeholder="название пункта">
+        <button @click="addItem(cardIndex)" :disabled="card.full">+</button>
         <ul>
           <li v-for="(item, itemIndex) in card.items" :key="itemIndex">
-            <span v-if="editedIndex !== itemIndex">
-              <input type="checkbox" v-model="card.checkedItems[itemIndex]" @change="checkCardStatus(index)">
-              <span @click="editItem(itemIndex, item)">{{ item }}</span>
+            <span v-if="editedIndex[cardIndex] !== itemIndex">
+              <input type="checkbox" v-model="card.checkedItems[itemIndex]" @change="checkCardStatus(cardIndex)">
+              <span @click="editItem(cardIndex, itemIndex, item)">{{ item }}</span>
             </span>
             <span v-else>
-              <input id="input-edit-item" type="text" v-model="editedItem" @blur="doneEdit(index)" @keyup.enter="doneEdit(index)">
+              <input id="input-edit-item" type="text" v-model="editedItem[cardIndex]" @blur="doneEdit(cardIndex)" @keyup.enter="doneEdit(cardIndex)">
             </span>
           </li>
         </ul>
         <div v-if="card.lastChecked"><p>Выполнено {{ card.lastChecked }}</p></div>
       </div>
-      
     </div>
   `,
 });
